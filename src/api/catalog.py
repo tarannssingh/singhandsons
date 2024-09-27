@@ -15,13 +15,13 @@ def get_catalog():
         sql_to_execute = "SELECT num_green_potions, gold FROM global_inventory"
         result = connection.execute(sqlalchemy.text(sql_to_execute))
 
-
+        print(result)
         return [
              {
                 "sku": "GREEN_POTION_0",
                 "name": "green potion",
-                "quantity": result[0],
-                "price": result[1],
+                "quantity": result,
+                "price": result,
                 "potion_type": [0, 100, 0, 0],
             }
         ]
