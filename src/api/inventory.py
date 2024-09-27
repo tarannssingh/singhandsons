@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from src.api import auth
 import math
 
+
 router = APIRouter(
     prefix="/inventory",
     tags=["inventory"],
