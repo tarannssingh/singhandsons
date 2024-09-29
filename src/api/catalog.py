@@ -12,16 +12,16 @@ def get_catalog():
     Each unique item combination must have only a single price.
     """
     with db.engine.begin() as connection:
-        sql_to_execute = "SELECT num_green_potions, gold FROM global_inventory"
-        result = connection.execute(sqlalchemy.text(sql_to_execute))
+        # connection.execute is like fetch let response = await fetch({})
+        # and .scalar or .fetchall are like await let jsonData = await response.json()
+        result = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory;")).fetchall()
 
-        print(result)
         return [
-             {
+            {
                 "sku": "GREEN_POTION_0",
                 "name": "green potion",
-                "quantity": result,
-                "price": result,
+                "quantity": result[0][0],
+                "price": 51,
                 "potion_type": [0, 100, 0, 0],
             }
         ]
