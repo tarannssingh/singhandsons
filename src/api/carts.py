@@ -79,7 +79,7 @@ def post_visits(visit_id: int, customers: list[Customer]):
     """
     Which customers visited the shop today?
     """
-    
+
     print(customers)
 
     return "OK"
@@ -108,5 +108,7 @@ class CartCheckout(BaseModel):
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
-
-    return {"total_potions_bought": 1, "total_gold_paid": 50}
+    with db.engine.begin() as connection:
+        num_green_price = connection.execute(sqlalchemy.text("SELECT num_green_price FROM global_inventory")).scalar()
+        connection.execute(sqlalchemy.text("UPDATE global_inventory SET gold = gold + :revenue", {"revenue" : num_green_price}))
+        return {"total_potions_bought": 1, "total_gold_paid": num_green_price}
