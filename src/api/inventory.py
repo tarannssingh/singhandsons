@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
 import math
+import sqlalchemy
+from src import database as db
 
 
 router = APIRouter(
@@ -13,8 +15,11 @@ router = APIRouter(
 @router.get("/audit")
 def get_inventory():
     """ """
-    
-    return {"number_of_potions": 0, "ml_in_barrels": 0, "gold": 0}
+    with db.engine.begin() as connection:
+        gold = connection.execute(sqlalchemy.text(f"SELECT gold FROM global_inventory")).scalar()
+        ml = connection.execute(sqlalchemy.text(f"SELECT num_green_ml FROM global_inventory")).scalar()
+        potions = connection.execute(sqlalchemy.text(f"SELECT num_green_potions FROM global_inventory")).scalar()
+        return {"number_of_potions": potions, "ml_in_barrels": ml, "gold": gold}
 
 # Gets called once a day
 @router.post("/plan")
@@ -23,11 +28,22 @@ def get_capacity_plan():
     Start with 1 capacity for 50 potions and 1 capacity for 10000 ml of potion. Each additional 
     capacity unit costs 1000 gold.
     """
+    with db.engine.begin() as connection:
+        potion_capcity = 50 
+        potion_capcity_multiplier = connection.execute(sqlalchemy.text(f"SELECT potion_capcity FROM global_inventory")).scalar()
+        
+        ml_capcity = 10000 
+        potion_capcity_multiplier = connection.execute(sqlalchemy.text(f"SELECT ml_capcity FROM global_inventory")).scalar()
 
-    return {
-        "potion_capacity": 0,
-        "ml_capacity": 0
+        return {
+            "potion_capacity": potion_capcity * potion_capcity_multiplier,
+            "ml_capacity": ml_capcity * potion_capcity_multiplier
         }
+        # return {
+        # "potion_capacity": 0,
+        # "ml_capacity": 0
+        # }
+
 
 class CapacityPurchase(BaseModel):
     potion_capacity: int
