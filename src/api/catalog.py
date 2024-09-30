@@ -17,6 +17,10 @@ def get_catalog():
         result = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory;")).fetchall()
         num_green_price  = connection.execute(sqlalchemy.text("SELECT num_green_price FROM global_inventory;")).scalar()
 
+        # if we don't have any in stock, we shouldn't even consdier displaying, chipotle example
+        if result [0][0] == 0:
+            return []
+
         return [
             {
                 "sku": "GREEN_POTION_0",
