@@ -15,13 +15,14 @@ def get_catalog():
         # connection.execute is like fetch let response = await fetch({})
         # and .scalar or .fetchall are like await let jsonData = await response.json()
         result = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory;")).fetchall()
+        num_green_price  = connection.execute(sqlalchemy.text("SELECT num_green_price FROM global_inventory;")).fetchall()
 
         return [
             {
                 "sku": "GREEN_POTION_0",
                 "name": "green potion",
                 "quantity": result[0][0],
-                "price": 51,
+                "price": num_green_price,
                 "potion_type": [0, 100, 0, 0],
             }
         ]
