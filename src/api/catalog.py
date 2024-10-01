@@ -1,6 +1,9 @@
 import sqlalchemy
 from src import database as db
 
+import logging
+logger = logging.getLogger("uvicorn")
+
 from fastapi import APIRouter
 
 router = APIRouter()
@@ -16,7 +19,7 @@ def get_catalog():
         # and .scalar or .fetchall are like await let jsonData = await response.json()
         result = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory;")).fetchall()
         num_green_price  = connection.execute(sqlalchemy.text("SELECT num_green_price FROM global_inventory;")).scalar()
-
+        logging.info("someone opened the catalog")
         # if we don't have any in stock, we shouldn't even consdier displaying, chipotle example
         if result [0][0] == 0:
             return []

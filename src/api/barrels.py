@@ -10,6 +10,9 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
+import logging
+logger = logging.getLogger("uvicorn")
+
 class Barrel(BaseModel):
     sku: str
 
@@ -23,7 +26,7 @@ class Barrel(BaseModel):
 def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     """ """
     with db.engine.begin() as connection:
-        print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
+        logger.info(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
         # Update the barrels delievered assuming just green
         for barrels in barrels_delivered:
             # match barrels.potion_type:
@@ -45,7 +48,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     """ """
-    print(wholesale_catalog)
+    logger.info(wholesale_catalog)
 
     with db.engine.begin() as connection:
         num_of_green_potions = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory")).scalar()

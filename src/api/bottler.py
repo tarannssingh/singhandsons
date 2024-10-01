@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from src.api import auth
 import sqlalchemy
 from src import database as db
+import logging
+logger = logging.getLogger("uvicorn")
 
 router = APIRouter(
     prefix="/bottler",
@@ -19,7 +21,7 @@ class PotionInventory(BaseModel):
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
     """ """
     with db.engine.begin() as connection:
-        print(f"potions delievered: {potions_delivered} order_id: {order_id}")
+        logger.info(f"potions delievered: {potions_delivered} order_id: {order_id}")
         # remove the amount of green to remove
         for potion in potions_delivered:
             # assume it is green 
@@ -48,6 +50,7 @@ def get_bottle_plan():
         if num_green_ml // 100 != 0:
             # remove that amount from my db
             # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = num_green_ml - {(num_green_ml // 100) * 100}"))
+            logger.info(f"number of green ml I want to bottle: {num_green_ml}")
             return [
                     {
                         "potion_type": [0, 100, 0, 0],
