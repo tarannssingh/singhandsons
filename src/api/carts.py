@@ -92,6 +92,7 @@ def create_cart(new_cart: Customer):
         # create cart
         num_green_price = connection.execute(sqlalchemy.text("INSERT INTO cart (num_of_green_potions) VALUES (0)"))
         cart_id  = connection.execute(sqlalchemy.text("SELECT id FROM cart ORDER BY id DESC")).scalar()
+        print(f"new cart {cart_id}")
         return {"cart_id": cart_id} 
     
     return {"cart_id": 1} # default 
@@ -106,7 +107,7 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(f"UPDATE cart SET num_of_green_potions = {cart_item.quantity} WHERE id = {cart_id}"))
-
+        print(f"cart {cart_id} added {cart_item.quantity} green potions")
         return "OK"
 
 
@@ -125,5 +126,6 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         quantity  = connection.execute(sqlalchemy.text(f"SELECT num_of_green_potions FROM cart WHERE id = {cart_id}")).scalar()
         # add the amount of gold recieved to my global inventory
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold + {num_green_price * quantity}"))
+        print(f"total_potions_bought: {quantity}, total_gold_paid: {num_green_price * quantity}")
         return {"total_potions_bought": quantity, "total_gold_paid": num_green_price * quantity}
     

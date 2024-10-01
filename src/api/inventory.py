@@ -31,7 +31,6 @@ def get_capacity_plan():
     with db.engine.begin() as connection:
         potion_capacity = 50 
         potion_capacity_multiplier = connection.execute(sqlalchemy.text(f"SELECT potion_capacity FROM global_inventory")).scalar()
-        
         ml_capacity = 10000 
         potion_capacity_multiplier = connection.execute(sqlalchemy.text(f"SELECT ml_capacity FROM global_inventory")).scalar()
 
