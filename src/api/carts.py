@@ -82,7 +82,7 @@ def post_visits(visit_id: int, customers: list[Customer]):
     Which customers visited the shop today?
     """
 
-    print(customers)
+    logger.info(customers)
 
     return "OK"
 
@@ -109,7 +109,7 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(f"UPDATE cart SET num_of_green_potions = {cart_item.quantity} WHERE id = {cart_id}"))
-        print(f"cart {cart_id} added {cart_item.quantity} green potions")
+        logger.info(f"cart {cart_id} added {cart_item.quantity} green potions")
         return "OK"
 
 
@@ -120,7 +120,7 @@ class CartCheckout(BaseModel):
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
     # Make specfic logic for the cart
-    print(CartCheckout.payment)
+    logger.info(CartCheckout.payment)
     with db.engine.begin() as connection:
         # fetch the price of green potions
         num_green_price = connection.execute(sqlalchemy.text("SELECT num_green_price FROM global_inventory")).scalar()
@@ -128,6 +128,6 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         quantity  = connection.execute(sqlalchemy.text(f"SELECT num_of_green_potions FROM cart WHERE id = {cart_id}")).scalar()
         # add the amount of gold recieved to my global inventory
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold + {num_green_price * quantity}"))
-        print(f"total_potions_bought: {quantity}, total_gold_paid: {num_green_price * quantity}")
+        logger.info(f"total_potions_bought: {quantity}, total_gold_paid: {num_green_price * quantity}")
         return {"total_potions_bought": quantity, "total_gold_paid": num_green_price * quantity}
     
