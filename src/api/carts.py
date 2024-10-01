@@ -4,6 +4,8 @@ from src.api import auth
 from enum import Enum
 import sqlalchemy
 from src import database as db
+import logging
+logger = logging.getLogger("uvicorn")
 
 router = APIRouter(
     prefix="/carts",
@@ -92,7 +94,7 @@ def create_cart(new_cart: Customer):
         # create cart
         num_green_price = connection.execute(sqlalchemy.text("INSERT INTO cart (num_of_green_potions) VALUES (0)"))
         cart_id  = connection.execute(sqlalchemy.text("SELECT id FROM cart ORDER BY id DESC")).scalar()
-        print(f"new cart {cart_id}")
+        logger.info(f"new cart {cart_id}")
         return {"cart_id": cart_id} 
     
     return {"cart_id": 1} # default 
