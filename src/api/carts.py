@@ -120,7 +120,7 @@ class CartCheckout(BaseModel):
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
     # Make specfic logic for the cart
-    logger.info(CartCheckout.payment)
+    logger.info(f"{CartCheckout.payment}")
     with db.engine.begin() as connection:
         # fetch the price of green potions
         num_green_price = connection.execute(sqlalchemy.text("SELECT num_green_price FROM global_inventory")).scalar()
