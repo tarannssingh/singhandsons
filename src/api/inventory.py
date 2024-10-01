@@ -35,13 +35,17 @@ def get_capacity_plan():
         potion_capacity_multiplier = connection.execute(sqlalchemy.text(f"SELECT ml_capacity FROM global_inventory")).scalar()
 
         return {
-            "potion_capacity": potion_capacity * potion_capacity_multiplier,
-            "ml_capacity": ml_capacity * potion_capacity_multiplier
+            "potion_capacity": potion_capacity_multiplier,
+            "ml_capacity": potion_capacity_multiplier
         }
         # return {
         # "potion_capacity": 0,
         # "ml_capacity": 0
         # }
+#         {
+#   "potion_capacity": "number",
+#   "ml_capacity": "number"
+# }
 
 
 class CapacityPurchase(BaseModel):
