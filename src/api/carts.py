@@ -120,7 +120,7 @@ class CartCheckout(BaseModel):
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
     # Make specfic logic for the cart
-    logger.info(f"{CartCheckout.payment}")
+    logger.info(f"{cart_checkout.payment}")
     with db.engine.begin() as connection:
         # fetch the price of green potions
         num_green_price = connection.execute(sqlalchemy.text("SELECT num_green_price FROM global_inventory")).scalar()
@@ -128,6 +128,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         quantity  = connection.execute(sqlalchemy.text(f"SELECT num_of_green_potions FROM cart WHERE id = {cart_id}")).scalar()
         # add the amount of gold recieved to my global inventory
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold + {num_green_price * quantity}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_of_green_potions = num_of_green_potions - {quantity}"))
         logger.info(f"total_potions_bought: {quantity}, total_gold_paid: {num_green_price * quantity}")
         return {"total_potions_bought": quantity, "total_gold_paid": num_green_price * quantity}
     
