@@ -29,15 +29,15 @@ def get_capacity_plan():
     capacity unit costs 1000 gold.
     """
     with db.engine.begin() as connection:
-        potion_capcity = 50 
-        potion_capcity_multiplier = connection.execute(sqlalchemy.text(f"SELECT potion_capcity FROM global_inventory")).scalar()
+        potion_capacity = 50 
+        potion_capacity_multiplier = connection.execute(sqlalchemy.text(f"SELECT potion_capacity FROM global_inventory")).scalar()
         
-        ml_capcity = 10000 
-        potion_capcity_multiplier = connection.execute(sqlalchemy.text(f"SELECT ml_capcity FROM global_inventory")).scalar()
+        ml_capacity = 10000 
+        potion_capacity_multiplier = connection.execute(sqlalchemy.text(f"SELECT ml_capacity FROM global_inventory")).scalar()
 
         return {
-            "potion_capacity": potion_capcity * potion_capcity_multiplier,
-            "ml_capacity": ml_capcity * potion_capcity_multiplier
+            "potion_capacity": potion_capacity * potion_capacity_multiplier,
+            "ml_capacity": ml_capacity * potion_capacity_multiplier
         }
         # return {
         # "potion_capacity": 0,
