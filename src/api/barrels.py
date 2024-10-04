@@ -34,7 +34,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
                     # query to get my current amount of green ml
                     num_green_ml = connection.execute(sqlalchemy.text("SELECT num_green_ml FROM global_inventory")).scalar()
                     # query to update my inventory
-                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml={num_green_ml + barrels.ml_per_barrel * barrels.quantity}"))
+                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {num_green_ml + barrels.ml_per_barrel * barrels.quantity}"))
                     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold - {barrels.price * barrels.quantity}"))
                 # case [0,0,0,1]:
                 #     pass
