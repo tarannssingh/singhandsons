@@ -92,12 +92,12 @@ def create_cart(new_cart: Customer):
     """ """
     with db.engine.begin() as connection:
         # create cart
-        num_green_price = connection.execute(sqlalchemy.text("INSERT INTO cart (num_of_green_potions) VALUES (0)"))
+        connection.execute(sqlalchemy.text("INSERT INTO cart DEFAULT VALUES"))
         cart_id  = connection.execute(sqlalchemy.text("SELECT id FROM cart ORDER BY id DESC")).scalar()
         logger.info(f"new cart {cart_id}")
         return {"cart_id": cart_id} 
     
-    return {"cart_id": 1} # default 
+    # return {"cart_id": 1} # default 
 
 
 class CartItem(BaseModel):
@@ -108,8 +108,13 @@ class CartItem(BaseModel):
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE cart SET num_of_green_potions = {cart_item.quantity} WHERE id = {cart_id}"))
-        logger.info(f"cart {cart_id} added {cart_item.quantity} green potions")
+        # here I am going to see create a new entry 
+        # get the the id of the sku
+        potion_id = connection.execute(sqlalchemy.text(f"SELECT id FROM potion_inventory WHERE sku = '{item_sku}' ")).scalar()
+        connection.execute(sqlalchemy.text(f"INSERT INTO cart_item(cart_id, bottle_id, quantity) VALUES ({cart_id}, {potion_id}, {cart_item.quantity}) ON CONFLICT (cart_id, bottle_id) DO UPDATE SET quantity = {cart_item.quantity};"))
+        
+        # connection.execute(sqlalchemy.text(f"UPDATE cart SET num_of_green_potions = {cart_item.quantity} WHERE id = {cart_id}"))
+        logger.info(f"cart {cart_id} added {cart_item.quantity} {item_sku} potions")
         return "OK"
 
 
@@ -123,12 +128,26 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     logger.info(f"{cart_checkout.payment}")
     with db.engine.begin() as connection:
         # fetch the price of green potions
-        num_green_price = connection.execute(sqlalchemy.text("SELECT num_green_price FROM global_inventory")).scalar()
+        # join with the potion table on id
+        potions = connection.execute(sqlalchemy.text(f"SELECT bottle_id, quantity, num_price, cart_id FROM cart_item INNER JOIN potion_inventory ON cart_item.bottle_id = potion_inventory.id WHERE cart_id = {cart_id}")).fetchall()
+        num_of_potions = 0
+        total_cost = 0 
+        for potion in potions:
+            potion_id = potion[0]
+            quantity = potion[1]
+            num_price = potion[2]
+            total_cost += num_price * quantity
+            num_of_potions += quantity
+            connection.execute(sqlalchemy.text(f"UPDATE potion_inventory SET num_potions = num_potions - {quantity} WHERE id = {potion_id}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold - {total_cost}"))
+        logger.info(f"{cart_checkout.payment}")
+        logger.info(f"total_potions_bought: {num_of_potions}, total_gold_paid: {total_cost}")
+        logger.info(f"{cart_checkout.payment}")
+        return {"total_potions_bought": num_of_potions, "total_gold_paid": total_cost}
+
         # get the quantity of the green potions this person wants to buy
-        quantity  = connection.execute(sqlalchemy.text(f"SELECT num_of_green_potions FROM cart WHERE id = {cart_id}")).scalar()
+        # quantity  = connection.execute(sqlalchemy.text(f"SELECT num_of_green_potions FROM cart WHERE id = {cart_id}")).scalar()
         # add the amount of gold recieved to my global inventory
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold + {num_green_price * quantity}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions - {quantity}"))
-        logger.info(f"total_potions_bought: {quantity}, total_gold_paid: {num_green_price * quantity}")
-        return {"total_potions_bought": quantity, "total_gold_paid": num_green_price * quantity}
+        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = num_green_potions - {quantity}"))
+        # return {"total_potions_bought": quantity, "total_gold_paid": num_green_price * quantity}
      

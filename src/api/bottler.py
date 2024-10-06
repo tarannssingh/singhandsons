@@ -24,12 +24,31 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
         logger.info(f"potions delievered: {potions_delivered} order_id: {order_id}")
         # remove the amount of green to remove
         for potion in potions_delivered:
-            # assume it is green 
             # update the amount of green ml available
-            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = num_green_ml - {potion.quantity * 100}"))
             # update the amount of potions added 
-            connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_green_potions = num_green_potions + :quantity"), {"quantity": potion.quantity })
+            red = potion.potion_type[0]
+            green = potion.potion_type[1]
+            blue = potion.potion_type[2]
+            dark = potion.potion_type[3]
 
+            # update the potion count
+            connection.execute(sqlalchemy.text("UPDATE potion_inventory SET num_potions = num_potions + :quantity WHERE green = :green AND red = :red AND blue = :blue AND dark = :dark"), {"quantity": potion.quantity, "red": red, "green": green, "blue": blue, "dark": dark})
+            # update the ml count
+            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = num_red_ml - {red}, num_green_ml = num_green_ml - {green}, num_blue_ml = num_blue_ml - {blue}, num_dark_ml = num_dark_ml - {dark}"))
+            # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET ml = - {potion.potion_type[0] * potion.quantity}"))
+            
+            # [
+            #     {
+            #         "potion_type": [
+            #         50, 50, 0, 0
+            #         ],
+            #         "quantity": 0
+            #     }
+            #  ]
+
+            # use the array to pick
+
+            
     
     # add that amount to potions
     return "OK"
@@ -46,18 +65,53 @@ def get_bottle_plan():
 
     # Initial logic: bottle all barrels into red potions.
     with db.engine.begin() as connection:
-        num_green_ml = connection.execute(sqlalchemy.text("SELECT num_green_ml FROM global_inventory")).scalar()
-        if num_green_ml // 100 != 0:
-            # remove that amount from my db
-            # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = num_green_ml - {(num_green_ml // 100) * 100}"))
-            logger.info(f"number of green ml I want to bottle: {num_green_ml}")
-            return [
-                    {
-                        "potion_type": [0, 100, 0, 0],
-                        "quantity": num_green_ml // 100,
-                    }
-                ]
-        return []
+        result = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark FROM potion_inventory")).fetchall()
+        
+        green = connection.execute(sqlalchemy.text("SELECT num_green_ml FROM global_inventory")).scalar()
+        red = connection.execute(sqlalchemy.text("SELECT num_red_ml FROM global_inventory")).scalar()
+        blue = connection.execute(sqlalchemy.text("SELECT num_blue_ml FROM global_inventory")).scalar()
+        dark = connection.execute(sqlalchemy.text("SELECT num_dark_ml FROM global_inventory")).scalar()
+
+        toBottle = []
+
+        for potion in result:
+            # deduct from global
+            # see if any of global became negative
+            # if not than add one more quantity 
+            potion_blueprint = []
+            for i in range(1,5):
+                potion_blueprint.append(potion[i]) if potion[i] else potion_blueprint.append(0)
+            match potion_blueprint:
+                case [0,100,0,0]: # green
+                    # query to get my current amount of green ml
+                    # query to update my inventory
+                    if green // 100 != 0:
+                        logger.info(f"number of {potion[1]} I want to bottle: {green//100} ml")
+                        toBottle.append(
+                            {
+                                "potion_type": potion_blueprint,
+                                "quantity": green // 100,
+                            }
+                        )
+                case [100,0,0,0]: # red
+                     if red // 100 != 0:
+                        logger.info(f"number of {potion[1]} I want to bottle: {red//100} ml")
+                        toBottle.append(
+                            {
+                                "potion_type": potion_blueprint,
+                                "quantity": red // 100,
+                            }
+                        )
+                case [0,0,100,0]: # blue
+                    if blue // 100 != 0:
+                        logger.info(f"number of {potion[1]} I want to bottle: {blue//100} ml")
+                        toBottle.append(
+                            {
+                                "potion_type": potion_blueprint,
+                                "quantity": blue // 100,
+                            }
+                        )
+        return toBottle
                 
             # return [
             #     {
@@ -65,13 +119,24 @@ def get_bottle_plan():
             #         "quantity": 5,
             #     }
             #     ]   
+            
+            # case [0,0,0,1]:
+            #     pass
+            # if potion[1]:
+            #     green_ml = potion[1]
+            # if potion[2]:
+            #     red_ml = potion[2]
+            # if potion[3]:
+            #     blue_ml = potion[3]
+            # if potion[4]:
+            #     dark_ml = potion[4]
 
-# [
-#   {
-#     "potion_type": [r, g, b, d],
-#     "quantity": "integer"
-#   }
-# ]
+            # [
+            #   {
+            #     "potion_type": [r, g, b, d],
+            #     "quantity": "integer"
+            #   }
+            # ]
 
 if __name__ == "__main__":
     print(get_bottle_plan())
