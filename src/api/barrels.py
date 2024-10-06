@@ -65,13 +65,13 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         red = {"sku" : "", "price" : 0}
         blue = {"sku" : "", "price" : 0}
         for barrel in wholesale_catalog:
-            if barrel.potion_type == [0, 1, 0, 0]:   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
+            if barrel.potion_type == [0, 1, 0, 0] and barrel.sku == "SMALL_GREEN_BARREL":   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
                 green["sku"] = barrel.sku
                 green["price"] = barrel.price
-            if barrel.potion_type == [1, 0, 0, 0]:   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
+            if barrel.potion_type == [1, 0, 0, 0] and barrel.sku == "SMALL_RED_BARREL":   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
                 red["sku"] = barrel.sku
                 red["price"] = barrel.price
-            if barrel.potion_type == [0, 0, 1, 0]:   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
+            if barrel.potion_type == [0, 0, 1, 0] and barrel.sku == "SMALL_BLUE_BARREL":   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
                 blue["sku"] = barrel.sku
                 blue["price"] = barrel.price
         
