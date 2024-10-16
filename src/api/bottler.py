@@ -96,7 +96,6 @@ def get_bottle_plan():
                 blue -= potion_blueprint[2]
                 dark -= potion_blueprint[3]             
 
-
         return to_bottle
                 
             # return [

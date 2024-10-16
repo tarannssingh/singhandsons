@@ -39,9 +39,16 @@ def get_capacity_plan():
         #     "potion_capacity": potion_capacity_multiplier,
         #     "ml_capacity": potion_capacity_multiplier
         # }
+
+        gold = connection.execute(sqlalchemy.text(f"SELECT gold FROM global_inventory")).scalar()
+        if gold > 6000: 
+            return {
+                "potion_capacity": 1,
+                "ml_capacity": 1
+            }
         return {
-        "potion_capacity": 0,
-        "ml_capacity": 0
+            "potion_capacity": 0,
+            "ml_capacity": 0
         }
 #         {
 #   "potion_capacity": "number",
@@ -61,7 +68,7 @@ def deliver_capacity_plan(capacity_purchase : CapacityPurchase, order_id: int):
     capacity unit costs 1000 gold.
     """
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET potion_capacity = potion_capacity + {capacity_purchase.potion_capacity}, ml_capacity = ml_capacity + {capacity_purchase.ml_capacity}")).scalar()
-
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET potion_capacity = potion_capacity + {capacity_purchase.potion_capacity}, ml_capacity = ml_capacity + {capacity_purchase.ml_capacity}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold - {1000 * capacity_purchase.potion_capacity + 1000 * capacity_purchase.ml_capacity}"))
 
     return "OK"
