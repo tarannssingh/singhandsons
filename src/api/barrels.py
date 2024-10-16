@@ -42,8 +42,9 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
                 case [0,0,1,0]: # blue
                     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = num_blue_ml + {barrels.ml_per_barrel * barrels.quantity}"))
                     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold - {barrels.price * barrels.quantity}"))
-                # case [0,0,0,1]:
-                #     pass
+                case [0,0,0,1]:
+                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_dark_ml = num_dark_ml + {barrels.ml_per_barrel * barrels.quantity}"))
+                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold - {barrels.price * barrels.quantity}"))
         return "OK"
 
 # Gets called once a day
@@ -53,9 +54,10 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     logger.info(wholesale_catalog)
 
     with db.engine.begin() as connection:
-        num_of_green_potions = connection.execute(sqlalchemy.text("SELECT num_potions FROM potion_inventory WHERE sku = 'GREEN'")).scalar()
-        num_of_red_potions = connection.execute(sqlalchemy.text("SELECT num_potions FROM potion_inventory WHERE sku = 'RED'")).scalar()
-        num_of_blue_potions = connection.execute(sqlalchemy.text("SELECT num_potions FROM potion_inventory WHERE sku = 'BLUE'")).scalar()
+        num_of_green_potions = connection.execute(sqlalchemy.text("SELECT SUM(num_potions) FROM potion_inventory WHERE green != 0")).scalar()
+        num_of_red_potions = connection.execute(sqlalchemy.text("SELECT SUM(num_potions) FROM potion_inventory WHERE red != 0")).scalar()
+        num_of_blue_potions = connection.execute(sqlalchemy.text("SELECT SUM(num_potions) FROM potion_inventory WHERE blue != 0")).scalar()
+        num_of_dark_potions = connection.execute(sqlalchemy.text("SELECT SUM(num_potions) FROM potion_inventory WHERE dark != 0 ")).scalar()
 
         # potions = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark, num_potions FROM potion_inventory")).fetchall()
 
@@ -64,6 +66,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         green = {"sku" : "", "price" : 0}
         red = {"sku" : "", "price" : 0}
         blue = {"sku" : "", "price" : 0}
+        dark = {"sku" : "", "price": 0}
         for barrel in wholesale_catalog:
             if barrel.potion_type == [0, 1, 0, 0] and barrel.sku == "SMALL_GREEN_BARREL":   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
                 green["sku"] = barrel.sku
@@ -74,13 +77,15 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             if barrel.potion_type == [0, 0, 1, 0] and barrel.sku == "SMALL_BLUE_BARREL":   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
                 blue["sku"] = barrel.sku
                 blue["price"] = barrel.price
+            if barrel.potion_type == [0, 0, 0, 1] and barrel.sku == "LARGE_DARK_BARREL":
+                dark["sku"] = barrel.sku
+                dark["price"] = barrel.price
         
         # Now buy what we have capacity to buyt 
         toBuy = []
         net_worth = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).scalar()
 
-        
-        if num_of_red_potions < 5 and red["sku"] != "" and net_worth >= red["price"]: # if we need to buy and the seller is selling
+        if num_of_red_potions < 10 and red["sku"] != "" and net_worth >= red["price"]: # if we need to buy and the seller is selling
             toBuy.append(
                 {
                     "sku": red["sku"],
@@ -88,7 +93,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 }
             )
             net_worth -= red["price"]
-        if num_of_blue_potions < 5 and blue["sku"] != "" and net_worth >= blue["price"]: # if we need to buy and the seller is selling
+        if num_of_blue_potions < 10 and blue["sku"] != "" and net_worth >= blue["price"]: # if we need to buy and the seller is selling
             toBuy.append(
                 {
                     "sku": blue["sku"],
@@ -96,7 +101,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 }
             )
             net_worth -= blue["price"]   
-        if num_of_green_potions < 5 and green["sku"] != "" and net_worth >= green["price"]: # if we need to buy and the seller is selling
+        if num_of_green_potions < 10 and green["sku"] != "" and net_worth >= green["price"]: # if we need to buy and the seller is selling
             toBuy.append(
                 {
                     "sku": green["sku"],
@@ -104,7 +109,13 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 }
             )
             net_worth -= green["price"]
-
+        if num_of_dark_potions < 10 and dark["sku"] != "" and net_worth >= dark["price"]:
+            toBuy.append(
+                {
+                    "sku": dark["sku"],
+                    "quantity": 1,
+                }
+            )
         # it will return nothing if there is nothing to return, else it will return what we marked to buy
         return toBuy
     
