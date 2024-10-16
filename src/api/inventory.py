@@ -41,7 +41,7 @@ def get_capacity_plan():
         # }
 
         gold = connection.execute(sqlalchemy.text(f"SELECT gold FROM global_inventory")).scalar()
-        if gold > 6000: 
+        if gold > 4000: 
             return {
                 "potion_capacity": 1,
                 "ml_capacity": 1
