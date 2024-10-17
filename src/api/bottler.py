@@ -65,7 +65,6 @@ def get_bottle_plan():
 
     # Initial logic: bottle all barrels into red potions.
     with db.engine.begin() as connection:
-        
         red = connection.execute(sqlalchemy.text("SELECT num_red_ml FROM global_inventory")).scalar()
         green = connection.execute(sqlalchemy.text("SELECT num_green_ml FROM global_inventory")).scalar()
         blue = connection.execute(sqlalchemy.text("SELECT num_blue_ml FROM global_inventory")).scalar()
@@ -82,7 +81,7 @@ def get_bottle_plan():
                 potion_blueprint.append(potion[i]) if potion[i] else potion_blueprint.append(0)
             
             can_bottle = True
-            if red - potion_blueprint[0] < 0 or green - potion_blueprint[1] < 0 or blue - potion_blueprint[2] < 0 or green - potion_blueprint[2] < 0:
+            if red - potion_blueprint[0] < 0 or green - potion_blueprint[1] < 0 or blue - potion_blueprint[2] < 0 or dark - potion_blueprint[3] < 0:
                 can_bottle = False
             if can_bottle:
                 to_bottle.append(
