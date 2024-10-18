@@ -87,7 +87,7 @@ def get_bottle_plan():
                 to_bottle.append(
                     {
                         "potion_type": potion_blueprint,
-                        "quantity": 5,
+                        "quantity": 1,
                     }
                 )
                 red -= potion_blueprint[0]
