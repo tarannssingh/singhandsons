@@ -81,6 +81,8 @@ def get_bottle_plan():
                 potion_blueprint.append(potion[i]) if potion[i] else potion_blueprint.append(0)
             
             can_bottle = True
+            # while one of ml is zero contiunting adding to quanity  (remove from blue print if its not possible) (check if i have capacity (55 poitons vs 50))
+            # loop on the blue print 
             if red - potion_blueprint[0] < 0 or green - potion_blueprint[1] < 0 or blue - potion_blueprint[2] < 0 or dark - potion_blueprint[3] < 0:
                 can_bottle = False
             if can_bottle:
