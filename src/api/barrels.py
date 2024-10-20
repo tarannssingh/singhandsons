@@ -107,19 +107,24 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         # This is just bootstrap code, so ill buy certain ml if I don't have any, to just make custom potions
         if num_of_ml[2] < 100 and len(barrel_colors["blue"]) and barrel_colors["blue"][0]["quantity"] != 0 and  barrel_colors["blue"][0]["price"] <= left_over_coins: # dark
             toBuy.append(barrel_colors["blue"][0])
-            barrel_colors["blue"][0]["quantity"] -= 1
+            barrel_colors["blue"][0]["quantity"] += 1
             left_over_coins -= barrel_colors["blue"][0]["price"]
         if num_of_ml[3] < 100 and len(barrel_colors["dark"]) and barrel_colors["dark"][0]["quantity"] != 0 and barrel_colors["dark"][0]["price"] <= left_over_coins: # dark
             toBuy.append(barrel_colors["dark"][0])
-            barrel_colors["dark"][0]["quantity"] -= 1
+            barrel_colors["dark"][0]["quantity"] += 1
             left_over_coins -= barrel_colors["dark"][0]["price"]
 
         logger.info(f"{left_over_coins}")
         logger.info(f"{barrel_colors}")
         # it will return nothing if there is nothing to return, else it will return what we marked to buy
+        # return toBuy
+        toBuy = filter(lambda b: b["quantity"] != 0, toBuy)
+        for barrel in toBuy:
+            if "price" in barrel:
+                del barrel["price"]
+
         return toBuy
     
-
         # return [
         #     {
         #         "sku": "SMALL_RED_BARREL",

@@ -92,7 +92,7 @@ def get_bottle_plan():
             continue_bottiling = False
             for sku in potion_blueprint.keys():
                 potion_vals = potion_blueprint[sku]
-                if red - potion_vals[0] >= 100 and green - potion_vals[1] >= 0 and blue - potion_vals[2] >= 0 and dark - potion_vals[3] >= 0:
+                if red - potion_vals[0] >= 49 and green - potion_vals[1] >= 0 and blue - potion_vals[2] >= 0 and dark - potion_vals[3] >= 0:
                     continue_bottiling = True 
                     to_bottle[sku]["quantity"] += 1
                     red -= potion_vals[0]
@@ -101,7 +101,9 @@ def get_bottle_plan():
                     dark -= potion_vals[3]    
             # while one of ml is zero contiunting adding to quanity  (remove from blue print if its not possible) (check if i have capacity (55 poitons vs 50))
             # loop on the blue print 
-                
+        for bottle in list(to_bottle.keys()):
+            if to_bottle[bottle]["quantity"] == 0:
+                del to_bottle[bottle]
         return list(to_bottle.values())
                 
             # return [
