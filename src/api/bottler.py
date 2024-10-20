@@ -65,39 +65,44 @@ def get_bottle_plan():
 
     # Initial logic: bottle all barrels into red potions.
     with db.engine.begin() as connection:
+        # mls 
         red = connection.execute(sqlalchemy.text("SELECT num_red_ml FROM global_inventory")).scalar()
         green = connection.execute(sqlalchemy.text("SELECT num_green_ml FROM global_inventory")).scalar()
         blue = connection.execute(sqlalchemy.text("SELECT num_blue_ml FROM global_inventory")).scalar()
         dark = connection.execute(sqlalchemy.text("SELECT num_dark_ml FROM global_inventory")).scalar()
 
-        to_bottle = []
-        result = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark FROM potion_inventory WHERE to_sell = 1")).fetchall()
-        for potion in result:
+        # potions
+        to_bottle = {}
+        potion_blueprint = {}
+        potions = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark FROM potion_inventory WHERE to_sell = 1")).fetchall()
+        for potion in potions:
             # deduct from global
             # see if any of global became negative
             # if not than add one more quantity 
-            potion_blueprint = []
-            for i in range(1,5):
-                potion_blueprint.append(potion[i]) if potion[i] else potion_blueprint.append(0)
-            
-            can_bottle = True
+            # potion_blueprint = []
+            # for i in range(1,5):
+            #     potion_blueprint.append(potion[i]) if potion[i] else potion_blueprint.append(0)
+            potion_blueprint[potion[0]] = (int(potion[1]), int(potion[2]), int(potion[3]), int(potion[4]))
+            to_bottle[potion[0]] = {
+                        "potion_type": potion_blueprint[potion[0]],
+                        "quantity": 0,
+                    }
+        continue_bottiling = True 
+        while continue_bottiling:
+            continue_bottiling = False
+            for sku in potion_blueprint.keys():
+                potion_vals = potion_blueprint[sku]
+                if red - potion_vals[0] >= 100 and green - potion_vals[1] >= 0 and blue - potion_vals[2] >= 0 and dark - potion_vals[3] >= 0:
+                    continue_bottiling = True 
+                    to_bottle[sku]["quantity"] += 1
+                    red -= potion_vals[0]
+                    green -= potion_vals[1]
+                    blue -= potion_vals[2]
+                    dark -= potion_vals[3]    
             # while one of ml is zero contiunting adding to quanity  (remove from blue print if its not possible) (check if i have capacity (55 poitons vs 50))
             # loop on the blue print 
-            if red - potion_blueprint[0] < 0 or green - potion_blueprint[1] < 0 or blue - potion_blueprint[2] < 0 or dark - potion_blueprint[3] < 0:
-                can_bottle = False
-            if can_bottle:
-                to_bottle.append(
-                    {
-                        "potion_type": potion_blueprint,
-                        "quantity": 1,
-                    }
-                )
-                red -= potion_blueprint[0]
-                green -= potion_blueprint[1]
-                blue -= potion_blueprint[2]
-                dark -= potion_blueprint[3]             
-
-        return to_bottle
+                
+        return list(to_bottle.values())
                 
             # return [
             #     {
