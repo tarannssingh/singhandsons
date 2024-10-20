@@ -70,33 +70,38 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             budget[color] = net_worth // 4 
             barrel_colors[color] = []
 
+        
+        # converted_wholesale_catalog = [Barrel(**barrel) if not isinstance(barrel, Barrel) else barrel for barrel in wholesale_catalog]
         for barrel in wholesale_catalog:
             # buy where the price is lowest and is necary budget each one (havea list) 
             # budget system and then append the barrels that fit critera starting form the biggest and going down from there
             # keep this as a second strategy to buy something if the first startegey above returns nothing to buy 
             if barrel.potion_type == [0, 1, 0, 0]:   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
-                barrel_colors["green"].append({"sku" : barrel.sku, "price" : barrel.price, "quantity": barrel.quantity})
+                barrel_colors["green"].append(barrel)
             if barrel.potion_type == [1, 0, 0, 0]:   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
-                barrel_colors["red"].append({"sku" : barrel.sku, "price" : barrel.price, "quantity": barrel.quantity})
+                barrel_colors["red"].append(barrel)
             if barrel.potion_type == [0, 0, 1, 0]:   # check if the wholesaler is selling the goods we need and if we have the funds to purchase
-                barrel_colors["blue"].append({"sku" : barrel.sku, "price" : barrel.price, "quantity": barrel.quantity})
+                barrel_colors["blue"].append(barrel)
             if barrel.potion_type == [0, 0, 0, 1]:
-                barrel_colors["dark"].append({"sku" : barrel.sku, "price" : barrel.price, "quantity": barrel.quantity})
-        
+                barrel_colors["dark"].append(barrel)
+        # {"sku" : barrel.sku, "price" : barrel.price, "quantity": 0, "for_sale": barrel.quantity}
         # Now buy what we have capacity to buy
         for color in colors:
-            barrel_colors[color] = sorted(barrel_colors[color], key = lambda b: b["price"])
+            barrel_colors[color] = sorted(barrel_colors[color], key = lambda b: b.price)
 
-        toBuy = []
+        toBuy = {}
         continueAdding = 0
         while True:
             for color in colors:
                 if len(barrel_colors[color]) != 0: # if we need to buy and the seller is selling                        
                     for index, barrel in enumerate(barrel_colors[color]):
-                        if barrel["quantity"] != 0 and budget[color] >= barrel["price"]:
-                            toBuy.append({"sku" : barrel.sku, "price" : barrel.price})
-                            barrel_colors[color][index]["quantity"] -= 1
-                            budget[color] -= barrel["price"]
+                        if barrel.quantity != 0 and budget[color] >= barrel.price:
+                            if barrel.sku not in toBuy:
+                                toBuy[barrel.sku] = {"sku" : barrel.sku, "quantity": 0}
+                            toBuy[barrel.sku]["quantity"] += 1 
+                            barrel.quantity -= 1 
+                            # barrel_colors[color][index]["quantity"] -= 1
+                            budget[color] -= barrel.price
                             continueAdding += 1
             if not continueAdding:  # this is a flag to make sure we actually have the funds to add any 
                 break
@@ -105,25 +110,25 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         for color in colors:
             left_over_coins += budget[color]
         # This is just bootstrap code, so ill buy certain ml if I don't have any, to just make custom potions
-        if num_of_ml[2] < 100 and len(barrel_colors["blue"]) and barrel_colors["blue"][0]["quantity"] != 0 and  barrel_colors["blue"][0]["price"] <= left_over_coins: # dark
+        if num_of_ml[2] < 100 and len(barrel_colors["blue"]) and barrel_colors["blue"][0].quantity != 0 and  barrel_colors["blue"][0]["price"] <= left_over_coins: # dark
             toBuy.append(barrel_colors["blue"][0])
-            barrel_colors["blue"][0]["quantity"] += 1
+            barrel_colors["blue"][0].quantity -= 1
             left_over_coins -= barrel_colors["blue"][0]["price"]
-        if num_of_ml[3] < 100 and len(barrel_colors["dark"]) and barrel_colors["dark"][0]["quantity"] != 0 and barrel_colors["dark"][0]["price"] <= left_over_coins: # dark
+        if num_of_ml[3] < 100 and len(barrel_colors["dark"]) and barrel_colors["dark"][0].quantity != 0 and barrel_colors["dark"][0]["price"] <= left_over_coins: # dark
             toBuy.append(barrel_colors["dark"][0])
-            barrel_colors["dark"][0]["quantity"] += 1
+            barrel_colors["dark"][0].quantity -= 1
             left_over_coins -= barrel_colors["dark"][0]["price"]
 
         logger.info(f"{left_over_coins}")
         logger.info(f"{barrel_colors}")
         # it will return nothing if there is nothing to return, else it will return what we marked to buy
         # return toBuy
-        toBuy = filter(lambda b: b["quantity"] != 0, toBuy)
-        for barrel in toBuy:
-            if "price" in barrel:
-                del barrel["price"]
+        # toBuy = filter(lambda b: b["quantity"] != 0, toBuy)
+        # for barrel in toBuy:
+        #     if "price" in barrel:
+        #         del barrel["price"]
 
-        return toBuy
+        return list(toBuy.values())
     
         # return [
         #     {
