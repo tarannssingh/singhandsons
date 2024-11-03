@@ -30,21 +30,35 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
         # Update the barrels delievered assuming just green
         for barrels in barrels_delivered:
             # if the 3 possiblities and update the gold and inventory accordingly
+            ml_id = None
+            color = None
             match barrels.potion_type:
                 case [0,1,0,0]: # green
-                    # query to get my current amount of green ml
-                    # query to update my inventory
-                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = num_green_ml + {barrels.ml_per_barrel * barrels.quantity}"))
-                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold - {barrels.price * barrels.quantity}"))
+                    ml_id = 2
+                    color = 'GREEN'
                 case [1,0,0,0]: # red
-                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = num_red_ml + {barrels.ml_per_barrel * barrels.quantity}"))
-                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold - {barrels.price * barrels.quantity}"))
+                    ml_id = 1
+                    color = 'RED'
                 case [0,0,1,0]: # blue
-                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = num_blue_ml + {barrels.ml_per_barrel * barrels.quantity}"))
-                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold - {barrels.price * barrels.quantity}"))
+                    ml_id = 3
+                    color = 'BLUE'
                 case [0,0,0,1]:
-                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_dark_ml = num_dark_ml + {barrels.ml_per_barrel * barrels.quantity}"))
-                    connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold - {barrels.price * barrels.quantity}"))
+                    ml_id = 4
+                    color = 'DARK'
+            if ml_id and color:
+                # transaction
+                sql_to_execute = "INSERT INTO transactions (description) VALUES (:description) RETURNING id"
+                description = f'Purchase Barrel: {barrels.quantity} {color} at {barrels.ml_per_barrel} ml'
+                values = {"description": description}
+                transaction_id = connection.execute(sqlalchemy.text(sql_to_execute), values).scalar()
+                
+                # add new barrels
+                sql_to_execute = "INSERT INTO ml_ledger_entries (transaction_id, ml_id, change) VALUES (:transaction_id, :ml_id, :change)"
+                values = {"transaction_id": transaction_id, "ml_id": ml_id, "change": barrels.ml_per_barrel * barrels.quantity, "cost": -barrels.price * barrels.quantity}
+                connection.execute(sqlalchemy.text(sql_to_execute), values)
+                # remove gold
+                sql_to_execute = "INSERT INTO gold_ledger_entries (transaction_id, change) VALUES (:transaction_id, :cost)"
+                connection.execute(sqlalchemy.text(sql_to_execute), values)
         return "OK"
 
 # Gets called once a day
@@ -54,8 +68,26 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     logger.info(wholesale_catalog)
 
     with db.engine.begin() as connection:
-        num_of_ml = connection.execute(sqlalchemy.text("SELECT num_red_ml, num_green_ml, num_blue_ml, num_dark_ml FROM global_inventory")).first()
-        net_worth = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).scalar()
+        # num_of_ml = connection.execute(sqlalchemy.text("SELECT num_red_ml, num_green_ml, num_blue_ml, num_dark_ml FROM global_inventory")).first()
+        # net_worth = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).scalar()
+        sql_to_execute = '''
+                            SELECT ml_catalog.name, CAST(COALESCE(SUM(change), 0) AS INT) as ml FROM ml_catalog 
+                            LEFT JOIN ml_ledger_entries 
+                            ON ml_ledger_entries.ml_id = ml_catalog.id
+                            GROUP BY ml_catalog.name
+                        '''
+        num_of_ml = [0] * 4
+        ml_query = list(connection.execute(sqlalchemy.text(sql_to_execute)))
+        for ml in ml_query:
+            if ml[0] == "RED":
+                num_of_ml[0] = ml[1]
+            if ml[0] == "GREEN":
+                num_of_ml[1] = ml[1]
+            if ml[0] == "BLUE":
+                num_of_ml[2] = ml[1]
+            if ml[0] == "DARK":
+                num_of_ml[2] = ml[1]
+        net_worth = connection.execute(sqlalchemy.text("SELECT CAST(SUM(change) AS INT) FROM gold_ledger_entries")).scalar()
         # potions = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark, num_potions FROM potion_inventory")).fetchall()
 
         # log what is being sold
@@ -110,11 +142,11 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         for color in colors:
             left_over_coins += budget[color]
         # This is just bootstrap code, so ill buy certain ml if I don't have any, to just make custom potions
-        if num_of_ml[2] < 100 and len(barrel_colors["blue"]) and barrel_colors["blue"][0].quantity != 0 and  barrel_colors["blue"][0].price <= left_over_coins: # dark
-            sku = barrel_colors["blue"][0].sku
+        if num_of_ml[1] < 100 and len(barrel_colors["green"]) and barrel_colors["green"][0].quantity != 0 and  barrel_colors["green"][0].price <= left_over_coins: # dark
+            sku = barrel_colors["green"][0].sku
             toBuy[sku] = {"sku" : sku, "quantity": 1}
-            barrel_colors["blue"][0].quantity -= 1
-            left_over_coins -= barrel_colors["blue"][0].price
+            barrel_colors["green"][0].quantity -= 1
+            left_over_coins -= barrel_colors["green"][0].price
         if num_of_ml[3] < 100 and len(barrel_colors["dark"]) and barrel_colors["dark"][0].quantity != 0 and barrel_colors["dark"][0].price <= left_over_coins: # dark
             sku = barrel_colors["dark"][0].sku
             toBuy[sku] = {"sku" : sku, "quantity": 1}
