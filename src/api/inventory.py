@@ -16,9 +16,9 @@ router = APIRouter(
 def get_inventory():
     """ """
     with db.engine.begin() as connection:
-        gold = connection.execute(sqlalchemy.text(f"SELECT CAST(SUM(change) AS INT) FROM gold_ledger_entries")).scalar()
-        ml = connection.execute(sqlalchemy.text(f"SELECT CAST(SUM(change) AS INT) FROM ml_ledger_entries")).scalar()
-        potions = connection.execute(sqlalchemy.text(f"SELECT CAST(SUM(change) AS INT) FROM potion_ledger_entries")).scalar()
+        gold = connection.execute(sqlalchemy.text(f"SELECT CAST(COALESCE(SUM(change), 0) AS INT) FROM gold_ledger_entries")).scalar()
+        ml = connection.execute(sqlalchemy.text(f"SELECT CAST(COALESCE(SUM(change), 0) AS INT) FROM ml_ledger_entries")).scalar()
+        potions = connection.execute(sqlalchemy.text(f"SELECT CAST(COALESCE(SUM(change), 0) AS INT) FROM potion_ledger_entries")).scalar()
         return {"number_of_potions": potions, "ml_in_barrels": ml, "gold": gold}
 
 # Gets called once a day
