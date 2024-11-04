@@ -22,19 +22,55 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     """ """
     with db.engine.begin() as connection:
         logger.info(f"potions delievered: {potions_delivered} order_id: {order_id}")
-        # remove the amount of green to remove
+        # for each potion update the potion ledger
         for potion in potions_delivered:
-            # update the amount of green ml available
-            # update the amount of potions added 
             red = potion.potion_type[0]
             green = potion.potion_type[1]
             blue = potion.potion_type[2]
             dark = potion.potion_type[3]
 
-            # update the potion count
-            connection.execute(sqlalchemy.text("UPDATE potion_inventory SET num_potions = num_potions + :quantity WHERE green = :green AND red = :red AND blue = :blue AND dark = :dark"), {"quantity": potion.quantity, "red": red, "green": green, "blue": blue, "dark": dark})
-            # update the ml count
-            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = num_red_ml - {red * potion.quantity}, num_green_ml = num_green_ml - {green * potion.quantity}, num_blue_ml = num_blue_ml - {blue * potion.quantity}, num_dark_ml = num_dark_ml - {dark * potion.quantity}"))
+            # insert the transaction and get the corresponding id
+            description = f"Bottle: {potion.quantity} of [{red}, {green}, {blue}, {dark}]"
+            sql_to_execute = "INSERT INTO transactions (description) VALUES (:description) RETURNING id"
+            values = {"description": description}
+            transaction_id = connection.execute(sqlalchemy.text(sql_to_execute), values).scalar()
+
+            # update the ml used to bottle said potion       
+            values = {
+                "transaction_id": transaction_id,
+                "red_quantity": -red * potion.quantity,
+                "green_quantity": -green * potion.quantity,
+                "blue_quantity": -blue * potion.quantity,
+                "dark_quantity": -dark * potion.quantity
+            }
+            sql_to_execute = '''
+                                INSERT INTO ml_ledger_entries (transaction_id, ml_id, change) VALUES (:transaction_id, 1, :red_quantity);
+                                INSERT INTO ml_ledger_entries (transaction_id, ml_id, change) VALUES (:transaction_id, 2, :green_quantity);
+                                INSERT INTO ml_ledger_entries (transaction_id, ml_id, change) VALUES (:transaction_id, 3, :blue_quantity);
+                                INSERT INTO ml_ledger_entries (transaction_id, ml_id, change) VALUES (:transaction_id, 4, :dark_quantity);
+                            '''
+            connection.execute(sqlalchemy.text(sql_to_execute), values)
+
+            # update the potion count 
+            sql_to_execute = "SELECT id FROM potion_catalog WHERE red = :red AND green = :green AND blue = :blue AND dark = :dark"
+            values = {
+                "red" : red,
+                "green" : green,
+                "blue": blue,
+                "dark": dark
+            }
+            
+            potion_id = connection.execute(sqlalchemy.text(sql_to_execute), values).scalar()
+            values = {
+                "transaction_id": transaction_id,
+                "potion_id": potion_id,
+                "quantity": potion.quantity 
+            }
+
+            sql_to_execute = '''
+                                INSERT INTO potion_ledger_entries (transaction_id, potion_id, change) VALUES (:transaction_id, :potion_id, :quantity);
+                             '''
+            connection.execute(sqlalchemy.text(sql_to_execute), values)
             # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET ml = - {potion.potion_type[0] * potion.quantity}"))
             
             # [
@@ -65,11 +101,29 @@ def get_bottle_plan():
 
     # Initial logic: bottle all barrels into red potions.
     with db.engine.begin() as connection:
-        # mls 
-        red = connection.execute(sqlalchemy.text("SELECT num_red_ml FROM global_inventory")).scalar()
-        green = connection.execute(sqlalchemy.text("SELECT num_green_ml FROM global_inventory")).scalar()
-        blue = connection.execute(sqlalchemy.text("SELECT num_blue_ml FROM global_inventory")).scalar()
-        dark = connection.execute(sqlalchemy.text("SELECT num_dark_ml FROM global_inventory")).scalar()
+        # mls        
+        # get the mls
+        sql_to_execute = '''
+                                    SELECT ml_catalog.name, CAST(COALESCE(SUM(change), 0) AS INT) as ml FROM ml_catalog 
+                                    LEFT JOIN ml_ledger_entries 
+                                    ON ml_ledger_entries.ml_id = ml_catalog.id
+                                    GROUP BY ml_catalog.name
+                         '''
+        red = 0 
+        green = 0
+        blue = 0
+        dark = 0
+        ml_query = list(connection.execute(sqlalchemy.text(sql_to_execute)))
+        for ml in ml_query:
+            if ml[0] == "RED":
+                red = ml[1]
+            if ml[0] == "GREEN":
+                green = ml[1]
+            if ml[0] == "BLUE":
+                blue = ml[1]
+            if ml[0] == "DARK":
+                dark = ml[1]
+
 
         # potions
         to_bottle = {}
@@ -92,7 +146,7 @@ def get_bottle_plan():
             continue_bottiling = False
             for sku in potion_blueprint.keys():
                 potion_vals = potion_blueprint[sku]
-                if red - potion_vals[0] >= 49 and green - potion_vals[1] >= 0 and blue - potion_vals[2] >= 0 and dark - potion_vals[3] >= 0:
+                if red - potion_vals[0] >= 0 and green - potion_vals[1] >= 0 and blue - potion_vals[2] >= 0 and dark - potion_vals[3] >= 0:
                     continue_bottiling = True 
                     to_bottle[sku]["quantity"] += 1
                     red -= potion_vals[0]
