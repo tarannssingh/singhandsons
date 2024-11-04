@@ -8,7 +8,7 @@ import sys
 from starlette.middleware.cors import CORSMiddleware
 
 description = """
-Central Coast Cauldrons is the premier ecommerce site for all your alchemical desires.
+Singh and Sons is the premier ecommerce site for all your alchemical desires.
 """
 
 app = FastAPI(
