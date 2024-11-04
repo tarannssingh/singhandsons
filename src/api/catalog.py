@@ -32,9 +32,9 @@ def get_catalog():
                         LIMIT 6
                     )
 
-                    SELECT potion_catalog.sku, potion_catalog.red, potion_catalog.green, potion_catalog.blue, potion_catalog.dark, potion_catalog.name, options.potions, potion_catalog.num_price 
+                    SELECT potion_inventory.sku, potion_inventory.red, potion_inventory.green, potion_inventory.blue, potion_inventory.dark, potion_inventory.name, options.potions, potion_inventory.num_price 
                     FROM options 
-                    JOIN potion_catalog on options.potion_id = potion_catalog.id
+                    JOIN potion_inventory on options.potion_id = potion_inventory.id
                     '''
         
         potions = connection.execute(sqlalchemy.text(sql_to_execute)).fetchall()

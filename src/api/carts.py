@@ -111,7 +111,7 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
         # here I am going to see create a new entry 
         # get the the id of the sku
         logger.info(f"cart {cart_id} added {cart_item.quantity} {item_sku} potions")
-        potion_id = connection.execute(sqlalchemy.text(f"SELECT id FROM potion_catalog WHERE sku = :item_sku"), {"item_sku": item_sku}).scalar()
+        potion_id = connection.execute(sqlalchemy.text(f"SELECT id FROM potion_inventory WHERE sku = :item_sku"), {"item_sku": item_sku}).scalar()
         connection.execute(sqlalchemy.text(f'''
                                            INSERT INTO cart_item (cart_id, bottle_id, quantity) 
                                            VALUES (:cart_id, :potion_id, :cart_item_quantity) 
@@ -132,7 +132,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     with db.engine.begin() as connection:
         # fetch the price of green potions
         # join with the potion table on id
-        potions = connection.execute(sqlalchemy.text(f"SELECT bottle_id, quantity, num_price, cart_id FROM cart_item INNER JOIN potion_catalog ON cart_item.bottle_id = potion_catalog.id WHERE cart_id = {cart_id}")).fetchall()
+        potions = connection.execute(sqlalchemy.text(f"SELECT bottle_id, quantity, num_price, cart_id FROM cart_item INNER JOIN potion_inventory ON cart_item.bottle_id = potion_inventory.id WHERE cart_id = {cart_id}")).fetchall()
         num_of_potions = 0
         total_cost = 0 
         for potion in potions:

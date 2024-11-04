@@ -52,7 +52,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
             connection.execute(sqlalchemy.text(sql_to_execute), values)
 
             # update the potion count 
-            sql_to_execute = "SELECT id FROM potion_catalog WHERE red = :red AND green = :green AND blue = :blue AND dark = :dark"
+            sql_to_execute = "SELECT id FROM potion_inventory WHERE red = :red AND green = :green AND blue = :blue AND dark = :dark"
             values = {
                 "red" : red,
                 "green" : green,
@@ -128,7 +128,7 @@ def get_bottle_plan():
         # potions
         to_bottle = {}
         potion_blueprint = {}
-        potions = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark FROM potion_catalog WHERE to_sell = 1")).fetchall()
+        potions = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark FROM potion_inventory WHERE to_sell = 1")).fetchall()
         for potion in potions:
             # deduct from global
             # see if any of global became negative
