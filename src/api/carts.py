@@ -92,8 +92,8 @@ def create_cart(new_cart: Customer):
     """ """
     with db.engine.begin() as connection:
         # create cart
-        connection.execute(sqlalchemy.text("INSERT INTO cart DEFAULT VALUES"))
-        cart_id  = connection.execute(sqlalchemy.text("SELECT id FROM cart ORDER BY id DESC")).scalar()
+        cart_id = connection.execute(sqlalchemy.text("INSERT INTO cart DEFAULT VALUES RETURNING id")).scalar()
+        # connection.execute(sqlalchemy.text("SELECT id FROM cart ORDER BY id DESC")).scalar()
         logger.info(f"new cart {cart_id}")
         return {"cart_id": cart_id} 
     
@@ -110,11 +110,14 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     with db.engine.begin() as connection:
         # here I am going to see create a new entry 
         # get the the id of the sku
-        potion_id = connection.execute(sqlalchemy.text(f"SELECT id FROM potion_inventory WHERE sku = '{item_sku}' ")).scalar()
-        connection.execute(sqlalchemy.text(f"INSERT INTO cart_item(cart_id, bottle_id, quantity) VALUES ({cart_id}, {potion_id}, {cart_item.quantity}) ON CONFLICT (cart_id, bottle_id) DO UPDATE SET quantity = {cart_item.quantity};"))
-        
-        # connection.execute(sqlalchemy.text(f"UPDATE cart SET num_of_green_potions = {cart_item.quantity} WHERE id = {cart_id}"))
         logger.info(f"cart {cart_id} added {cart_item.quantity} {item_sku} potions")
+        potion_id = connection.execute(sqlalchemy.text(f"SELECT id FROM potion_catalog WHERE sku = :item_sku"), {"item_sku": item_sku}).scalar()
+        connection.execute(sqlalchemy.text(f'''
+                                           INSERT INTO cart_item (cart_id, bottle_id, quantity) 
+                                           VALUES (:cart_id, :potion_id, :cart_item_quantity) 
+                                           ON CONFLICT (cart_id, bottle_id) DO UPDATE SET quantity = :cart_item_quantity;
+                                           '''), {"cart_id" : cart_id, "potion_id" : potion_id, "cart_item_quantity": cart_item.quantity})
+        # connection.execute(sqlalchemy.text(f"UPDATE cart SET num_of_green_potions = {cart_item.quantity} WHERE id = {cart_id}"))
         return "OK"
 
 
@@ -129,20 +132,31 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     with db.engine.begin() as connection:
         # fetch the price of green potions
         # join with the potion table on id
-        potions = connection.execute(sqlalchemy.text(f"SELECT bottle_id, quantity, num_price, cart_id FROM cart_item INNER JOIN potion_inventory ON cart_item.bottle_id = potion_inventory.id WHERE cart_id = {cart_id}")).fetchall()
+        potions = connection.execute(sqlalchemy.text(f"SELECT bottle_id, quantity, num_price, cart_id FROM cart_item INNER JOIN potion_catalog ON cart_item.bottle_id = potion_catalog.id WHERE cart_id = {cart_id}")).fetchall()
         num_of_potions = 0
         total_cost = 0 
         for potion in potions:
+            # compute amount ordered
             potion_id = potion[0]
             quantity = potion[1]
             num_price = potion[2]
             total_cost += num_price * quantity
             num_of_potions += quantity
-            connection.execute(sqlalchemy.text(f"UPDATE potion_inventory SET num_potions = num_potions - {quantity} WHERE id = {potion_id}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold + {total_cost}"))
+            # transaction ledger 
+            description = f"Checkout: {quantity} of Potion ID {potion_id} at {num_price} gold"
+            transaction_id = connection.execute(sqlalchemy.text("INSERT INTO transactions (description) VALUES (:description) RETURNING id"), {"description": description}).scalar()
+            # potion ledger
+            values = {"transaction_id": transaction_id, "potion_id": potion_id, "change": -quantity}
+            connection.execute(sqlalchemy.text("INSERT INTO potion_ledger_entries (transaction_id, potion_id, change) VALUES (:transaction_id, :potion_id, :change)"), values)
+            # gold ledger 
+            values = {"transaction_id": transaction_id, "change": num_price * quantity}
+            sql_to_execute = "INSERT INTO gold_ledger_entries (transaction_id, change) VALUES (:transaction_id, :change)"
+            connection.execute(sqlalchemy.text(sql_to_execute), values)
+
+        
+        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold + {total_cost}"))
         logger.info(f"{cart_checkout.payment}")
         logger.info(f"total_potions_bought: {num_of_potions}, total_gold_paid: {total_cost}")
-        logger.info(f"{cart_checkout.payment}")
         return {"total_potions_bought": num_of_potions, "total_gold_paid": total_cost}
 
         # get the quantity of the green potions this person wants to buy
