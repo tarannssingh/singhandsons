@@ -26,12 +26,13 @@ def reset():
         # archive and reset tables
         time = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         '''
+                           
+        '''
+        sql_to_execute = f'''
                             CREATE TABLE ztransactions_{time} as SELECT * FROM transactions;
                             CREATE TABLE zgold_ledger_entries_{time} as SELECT * FROM gold_ledger_entries;
                             CREATE TABLE zpotion_ledger_entries_{time} as SELECT * FROM potion_ledger_entries;
                             CREATE TABLE zml_ledger_entries_{time} as SELECT * FROM ml_ledger_entries;
-        '''
-        sql_to_execute = f'''
                             TRUNCATE TABLE transactions;
                             TRUNCATE TABLE gold_ledger_entries;
                             TRUNCATE TABLE potion_ledger_entries;
