@@ -21,7 +21,7 @@ def get_catalog():
         # result = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory;")).fetchall()
         # num_green_price  = connection.execute(sqlalchemy.text("SELECT num_green_price FROM global_inventory;")).scalar()
 
-        potions = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark, name, num_potions, num_price FROM potion_inventory WHERE num_potions != 0;")).fetchall()
+        potions = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark, name, num_potions, num_price FROM potion_catalog WHERE num_potions != 0;")).fetchall()
         
         logging.info("someone opened the catalog")
         # if we don't have any in stock, we shouldn't even consdier displaying, chipotle example

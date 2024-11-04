@@ -128,7 +128,7 @@ def get_bottle_plan():
         # potions
         to_bottle = {}
         potion_blueprint = {}
-        potions = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark FROM potion_inventory WHERE to_sell = 1")).fetchall()
+        potions = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark FROM potion_catalog WHERE to_sell = 1")).fetchall()
         for potion in potions:
             # deduct from global
             # see if any of global became negative
