@@ -33,10 +33,12 @@ def reset():
                             CREATE TABLE zgold_ledger_entries_{time} as SELECT * FROM gold_ledger_entries;
                             CREATE TABLE zpotion_ledger_entries_{time} as SELECT * FROM potion_ledger_entries;
                             CREATE TABLE zml_ledger_entries_{time} as SELECT * FROM ml_ledger_entries;
+                            CREATE TABLE zcart_{time} as SELECT * FROM cart;
                             TRUNCATE TABLE transactions;
                             TRUNCATE TABLE gold_ledger_entries;
                             TRUNCATE TABLE potion_ledger_entries;
                             TRUNCATE TABLE ml_ledger_entries;
+                            TRUNCATE TABLE cart;
                          '''
         connection.execute(sqlalchemy.text(sql_to_execute))
         # make transaction
