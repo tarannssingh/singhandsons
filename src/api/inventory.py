@@ -39,12 +39,21 @@ def get_capacity_plan():
         #     "ml_capacity": potion_capacity_multiplier
         # }
 
-        gold = connection.execute(sqlalchemy.text(f"SELECT gold FROM global_inventory")).scalar()
-        if gold > 4000: 
-            return {
-                "potion_capacity": 1,
-                "ml_capacity": 1
-            }
+        gold = connection.execute(sqlalchemy.text(f"SELECT CAST(COALESCE(SUM(change), 0) AS INT) FROM gold_ledger_entries")).scalar()
+        ml = connection.execute(sqlalchemy.text(f"SELECT CAST(COALESCE(SUM(change), 0) AS INT) FROM ml_ledger_entries")).scalar()
+        potion_capacity = connection.execute(sqlalchemy.text(f"SELECT ml_capacity FROM global_inventory")).scalar()
+        ml_capacity = connection.execute(sqlalchemy.text(f"SELECT potion_capacity FROM global_inventory")).scalar()
+        if gold > 1200: 
+            if potion_capacity <= 3 * ml_capacity: 
+                return {
+                    "potion_capacity": 1,
+                    "ml_capacity": 0
+                }
+            else:
+                return {
+                    "potion_capacity": 0,
+                    "ml_capacity": 1
+                }
         return {
             "potion_capacity": 0,
             "ml_capacity": 0
@@ -67,7 +76,16 @@ def deliver_capacity_plan(capacity_purchase : CapacityPurchase, order_id: int):
     capacity unit costs 1000 gold.
     """
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET potion_capacity = potion_capacity + {capacity_purchase.potion_capacity}, ml_capacity = ml_capacity + {capacity_purchase.ml_capacity}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold - {1000 * capacity_purchase.potion_capacity + 1000 * capacity_purchase.ml_capacity}"))
-
+        if capacity_purchase.potion_capacity != 0 or capacity_purchase.ml_capacity != 0:
+            # insert the transaction and get the corresponding id
+            description = f"Capacity: Buy {capacity_purchase.potion_capacity} potion capacity and {capacity_purchase.ml_capacity} ml capacity"
+            sql_to_execute = "INSERT INTO transactions (description) VALUES (:description) RETURNING id"
+            values = {"description": description}
+            transaction_id = connection.execute(sqlalchemy.text(sql_to_execute), values).scalar()
+            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET potion_capacity = potion_capacity + {capacity_purchase.potion_capacity}, ml_capacity = ml_capacity + {capacity_purchase.ml_capacity}"))
+            # update gold
+            values = {"transaction_id": transaction_id, "change": -1 * (capacity_purchase.potion_capacity * 1000 + capacity_purchase.ml_capacity * 1000)}
+            sql_to_execute = "INSERT INTO gold_ledger_entries (transaction_id, change) VALUES (:transaction_id, :change)"
+            connection.execute(sqlalchemy.text(sql_to_execute), values)
+        
     return "OK"
