@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
 import sqlalchemy
+from sqlalchemy.orm import aliased
 from src import database as db
 import logging
 logger = logging.getLogger("uvicorn")
@@ -55,65 +56,90 @@ def search_orders(
     Your results must be paginated, the max results you can return at any
     time is 5 total line items.
     """
-    # limit = 5
-    # offset = 0
-    # if sort_col is search_sort_options.customer_name:
-    #     order_by = db.cart_item.c.created_at
-    # if sort_col is search_sort_options.item_sku:
-    #     order_by = db.cart_item.c.created_at
-    # elif sort_col is search_sort_options.line_item_total:
-    #     order_by = db.cart_item.c.created_at
-    # elif sort_col is search_sort_options.timestamp:
-    #     order_by = db.cart_item.c.created_at
-    # else:
-    #     assert False
+    metadata_obj = sqlalchemy.MetaData()
+    customers = sqlalchemy.Table("customers", metadata_obj, autoload_with=db.engine)
+    potion_inventory = sqlalchemy.Table("potion_inventory", metadata_obj, autoload_with=db.engine)
+    cart_item = sqlalchemy.Table("cart_item", metadata_obj, autoload_with=db.engine)
+    cart = sqlalchemy.Table("cart", metadata_obj, autoload_with=db.engine)
 
-    # stmt = (
-    #     sqlalchemy.select(
-    #         db.cart_item.created_at,
-    #         db.cart_item.quantity
-    #     )
-    #     .limit(limit)
-    #     .offset(offset)
-    #     .order_by(order_by, db.)
-    # )
+    with db.engine.begin() as connection:
+        limit = 5
+        if search_page == "":
+            offset = 0
+        else:
+            offset = int(search_page) * limit
 
-    #    stmt = (
-    #     sqlalchemy.select(
-    #         db.movies.c.movie_id,
-    #         db.movies.c.title,
-    #         db.movies.c.year,
-    #         db.movies.c.imdb_rating,
-    #         db.movies.c.imdb_votes,
-    #     )
-    #     .limit(limit)
-    #     .offset(offset)
-    #     .order_by(order_by, db.movies.c.movie_id)
-    # )
+        # metrics to sort by 
+        if sort_col is search_sort_options.customer_name:
+            order_by = customers.c.customer
+        elif sort_col is search_sort_options.item_sku:
+            order_by = potion_inventory.c.sku
+        elif sort_col is search_sort_options.line_item_total:
+            order_by = cart_item.c.quantity * potion_inventory.c.num_price
+        elif sort_col is search_sort_options.timestamp:
+            order_by = cart_item.c.created_at
+        else:
+            assert False
+        if (sort_order == search_sort_order.asc):
+            order_by = order_by.asc()
+        else: 
+            order_by = order_by.desc()
 
+            # SELECT cart_item.cart_id, cart_item.created_at, customers.customer, potion_inventory.name, potion_inventory.num_price, cart_item.quantity FROM cart_item                                       
+            # JOIN cart ON cart.id = cart_item.cart_id 
+            # JOIN customers ON cart.customer_id = customers.id  
+            # JOIN potion_inventory ON cart_item.bottle_id = potion_inventory.id
+            # WHERE cart.is_checkout = 1
+            # LIMIT 5
+            # OFFSET 0
 
+        stmt = (
+            sqlalchemy.select (
+                cart_item.c.cart_id.label("cart_id"),
+                cart_item.c.id.label("line_item_id"),
+                cart_item.c.created_at.label("timestamp"),
+                customers.c.customer.label("customer_name"),
+                potion_inventory.c.sku.label("potion_sku"),
+                potion_inventory.c.name.label("potion_name"),
+                potion_inventory.c.num_price.label("potion_price"),
+                cart_item.c.quantity.label("quantity")
+            )
+            .select_from(cart_item)
+            .join(cart, cart.c.id == cart_item.c.cart_id)
+            .join(customers, customers.c.id == cart.c.customer_id)
+            .join(potion_inventory, potion_inventory.c.id == cart_item.c.bottle_id)
+            .where(cart.c.is_checkout == 1)
+            .limit(limit)
+            .offset(offset)
+            .order_by(order_by)
+        )            
 
-    # if customer_name != "":
-    #     stmt = stmt.where(db.cart_item.customer)
-    # if potion_sku != "":
-    #     stmt = stmt.where()
+            
+
+        
+        if customer_name != "":
+            stmt = stmt.where(customers.c.customer.ilike(f"%{customer_name}%"))
+        if potion_sku != "":
+            stmt = stmt.where(potion_inventory.c.sku.ilike(f"%{potion_sku}%"))
     
-    # with db.engine.begin() as connection:
-    #     pass
+        result = connection.execute(stmt)
+        json = []
+        for row in result:
+            json.append (
+                {
+                    "line_item_id": row.line_item_id,
+                    "item_sku": f"{row.quantity} {row.potion_name}",
+                    "customer_name": f"{row.customer_name}",
+                    "line_item_total": int(row.quantity) * int(row.potion_price),
+                    "timestamp": f"{row.timestamp}"
+                }
+            )
 
-    return {
-        "previous": "",
-        "next": "",
-        "results": [
-            {
-                "line_item_id": 1,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "N/A Customer",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            }
-        ],
-    }
+        return {
+            "previous": "",
+            "next": "",
+            "results": json,
+        }
 
 
 class Customer(BaseModel):
