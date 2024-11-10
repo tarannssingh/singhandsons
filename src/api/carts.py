@@ -136,7 +136,7 @@ def search_orders(
             )
 
         if search_page != "":
-            p = search_page
+            p = int(search_page) - 1
         else: 
             p = ""
         if len(json) < 5:
