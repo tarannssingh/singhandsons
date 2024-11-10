@@ -137,7 +137,7 @@ def search_orders(
 
         if search_page != "":
             p = int(search_page) - 1
-            if p <= 0:
+            if p < 0:
                 p = ""
         else: 
             p = ""
