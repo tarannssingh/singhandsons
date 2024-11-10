@@ -55,6 +55,51 @@ def search_orders(
     Your results must be paginated, the max results you can return at any
     time is 5 total line items.
     """
+    # limit = 5
+    # offset = 0
+    # if sort_col is search_sort_options.customer_name:
+    #     order_by = db.cart_item.c.created_at
+    # if sort_col is search_sort_options.item_sku:
+    #     order_by = db.cart_item.c.created_at
+    # elif sort_col is search_sort_options.line_item_total:
+    #     order_by = db.cart_item.c.created_at
+    # elif sort_col is search_sort_options.timestamp:
+    #     order_by = db.cart_item.c.created_at
+    # else:
+    #     assert False
+
+    # stmt = (
+    #     sqlalchemy.select(
+    #         db.cart_item.created_at,
+    #         db.cart_item.quantity
+    #     )
+    #     .limit(limit)
+    #     .offset(offset)
+    #     .order_by(order_by, db.)
+    # )
+
+    #    stmt = (
+    #     sqlalchemy.select(
+    #         db.movies.c.movie_id,
+    #         db.movies.c.title,
+    #         db.movies.c.year,
+    #         db.movies.c.imdb_rating,
+    #         db.movies.c.imdb_votes,
+    #     )
+    #     .limit(limit)
+    #     .offset(offset)
+    #     .order_by(order_by, db.movies.c.movie_id)
+    # )
+
+
+
+    # if customer_name != "":
+    #     stmt = stmt.where(db.cart_item.customer)
+    # if potion_sku != "":
+    #     stmt = stmt.where()
+    
+    # with db.engine.begin() as connection:
+    #     pass
 
     return {
         "previous": "",
@@ -63,7 +108,7 @@ def search_orders(
             {
                 "line_item_id": 1,
                 "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
+                "customer_name": "N/A Customer",
                 "line_item_total": 50,
                 "timestamp": "2021-01-01T00:00:00Z",
             }
@@ -81,20 +126,30 @@ def post_visits(visit_id: int, customers: list[Customer]):
     """
     Which customers visited the shop today?
     """
-
-    logger.info(customers)
-
+    with db.engine.begin() as connection:
+        for customer in customers:
+            values = {"customer": customer.customer_name, "character_class": customer.character_class, "level": customer.level}
+            sql_to_execute = "INSERT INTO customers (customer, character_class, level) VALUES (:customer, :character_class, :level) ON CONFLICT DO NOTHING"
+            connection.execute(sqlalchemy.text(sql_to_execute), values)
+        logger.info(customers)
     return "OK"
-
 
 @router.post("/")
 def create_cart(new_cart: Customer):
     """ """
     with db.engine.begin() as connection:
+        # get customer id
+        values = {"customer": new_cart.customer_name, "character_class": new_cart.character_class, "level": new_cart.level}
+        sql_to_execute = "INSERT INTO customers (customer, character_class, level) VALUES (:customer, :character_class, :level) ON CONFLICT DO NOTHING"
+        connection.execute(sqlalchemy.text(sql_to_execute), values)
+        sql_to_execute = "SELECT id FROM customers WHERE customer = :customer AND character_class = :character_class AND level = ':level'"
+        customer_id = connection.execute(sqlalchemy.text(sql_to_execute), values).scalar()
+
         # create cart
-        cart_id = connection.execute(sqlalchemy.text("INSERT INTO cart DEFAULT VALUES RETURNING id")).scalar()
+        values = {"customer_id": customer_id}
+        cart_id = connection.execute(sqlalchemy.text("INSERT INTO cart (customer_id) VALUES (:customer_id) RETURNING id"), values).scalar()
         # connection.execute(sqlalchemy.text("SELECT id FROM cart ORDER BY id DESC")).scalar()
-        logger.info(f"new cart {cart_id}")
+        logger.info(f"new cart {cart_id} for customer {customer_id}")
         return {"cart_id": cart_id} 
     
     # return {"cart_id": 1} # default 
@@ -152,10 +207,13 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
             values = {"transaction_id": transaction_id, "change": num_price * quantity}
             sql_to_execute = "INSERT INTO gold_ledger_entries (transaction_id, change) VALUES (:transaction_id, :change)"
             connection.execute(sqlalchemy.text(sql_to_execute), values)
-
+            # mark cart as checked out
+        values = {"id": cart_id}
+        sql_to_execute = "UPDATE cart SET is_checkout = 1 WHERE id = :id"
+        connection.execute(sqlalchemy.text(sql_to_execute), values)
         
         # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = gold + {total_cost}"))
-        logger.info(f"{cart_checkout.payment}")
+        logger.info(f"{cart_id}")
         logger.info(f"total_potions_bought: {num_of_potions}, total_gold_paid: {total_cost}")
         return {"total_potions_bought": num_of_potions, "total_gold_paid": total_cost}
 
