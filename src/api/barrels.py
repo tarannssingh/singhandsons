@@ -70,6 +70,10 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     with db.engine.begin() as connection:
         # num_of_ml = connection.execute(sqlalchemy.text("SELECT num_red_ml, num_green_ml, num_blue_ml, num_dark_ml FROM global_inventory")).first()
         # net_worth = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).scalar()
+        ml_current = connection.execute(sqlalchemy.text(f"SELECT CAST(COALESCE(SUM(change), 0) AS INT) FROM ml_ledger_entries")).scalar()
+        ml_capacity = connection.execute(sqlalchemy.text(f"SELECT potion_capacity FROM global_inventory")).scalar()
+        allowance = ml_capacity * 10000 - ml_current
+        
         sql_to_execute = '''
                             SELECT ml_catalog.name, CAST(COALESCE(SUM(change), 0) AS INT) as ml FROM ml_catalog 
                             LEFT JOIN ml_ledger_entries 
@@ -86,7 +90,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             if ml[0] == "BLUE":
                 num_of_ml[2] = ml[1]
             if ml[0] == "DARK":
-                num_of_ml[2] = ml[1]
+                num_of_ml[3] = ml[1]
         net_worth = connection.execute(sqlalchemy.text("SELECT CAST(SUM(change) AS INT) FROM gold_ledger_entries")).scalar()
         # potions = connection.execute(sqlalchemy.text("SELECT sku, red, green, blue, dark, num_potions FROM potion_inventory")).fetchall()
 
@@ -128,6 +132,9 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 if len(barrel_colors[color]) != 0: # if we need to buy and the seller is selling                        
                     for index, barrel in enumerate(barrel_colors[color]):
                         if barrel.quantity != 0 and budget[color] >= barrel.price:
+                            allowance -= barrel.ml_per_barrel
+                            if allowance < 0:
+                                break
                             if barrel.sku not in toBuy:
                                 toBuy[barrel.sku] = {"sku" : barrel.sku, "quantity": 0}
                             toBuy[barrel.sku]["quantity"] += 1 

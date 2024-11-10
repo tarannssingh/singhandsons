@@ -20,7 +20,7 @@ class PotionInventory(BaseModel):
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
     """ """
-    with db.engine.begin() as connection:
+    with db.engine.begin() as connection:    
         logger.info(f"potions delievered: {potions_delivered} order_id: {order_id}")
         # for each potion update the potion ledger
         for potion in potions_delivered:
@@ -101,6 +101,9 @@ def get_bottle_plan():
 
     # Initial logic: bottle all barrels into red potions.
     with db.engine.begin() as connection:
+        current_potions_count = connection.execute(sqlalchemy.text(f"SELECT CAST(COALESCE(SUM(change), 0) AS INT) FROM potion_ledger_entries")).scalar()
+        potion_capacity = connection.execute(sqlalchemy.text(f"SELECT ml_capacity FROM global_inventory")).scalar()
+        allowance = potion_capacity * 50 - current_potions_count
         # mls        
         # get the mls
         sql_to_execute = '''
@@ -145,10 +148,13 @@ def get_bottle_plan():
         while continue_bottiling:
             continue_bottiling = False
             for sku in potion_blueprint.keys():
+                if allowance <= 0: # if we don't have the capacity to make more, than stop going through potions
+                    break
                 potion_vals = potion_blueprint[sku]
                 if red - potion_vals[0] >= 0 and green - potion_vals[1] >= 0 and blue - potion_vals[2] >= 0 and dark - potion_vals[3] >= 0:
                     continue_bottiling = True 
                     to_bottle[sku]["quantity"] += 1
+                    allowance -= 1
                     red -= potion_vals[0]
                     green -= potion_vals[1]
                     blue -= potion_vals[2]
@@ -159,7 +165,22 @@ def get_bottle_plan():
             if to_bottle[bottle]["quantity"] == 0:
                 del to_bottle[bottle]
         return list(to_bottle.values())
-                
+        # Logic to prune any bottles we don't have capacity for
+        # allowed_amount = 50 * potion_capacity - current_potions_count
+        # while allowed_amount = 0 
+        # for bottle in to_buy:
+        # # remove any potions that we are not allowed to buy because of spacing limits
+        # to_buy = list(to_bottle.values())
+
+
+
+
+        # return to_buy
+    
+# 
+
+
+
             # return [
             #     {
             #         "potion_type": [100, 0, 0, 0],
