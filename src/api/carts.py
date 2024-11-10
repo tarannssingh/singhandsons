@@ -142,7 +142,9 @@ def search_orders(
         if len(json) < 5:
             n = ""
         else: 
-            n = search_page + 1
+            n = 1
+            if search_page != "":
+                n = int(search_page) + 1
         return {
             "previous": f"{p}",
             "next": f"{n}",
