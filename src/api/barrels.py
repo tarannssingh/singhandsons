@@ -73,7 +73,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         ml_current = connection.execute(sqlalchemy.text(f"SELECT CAST(COALESCE(SUM(change), 0) AS INT) FROM ml_ledger_entries")).scalar()
         ml_capacity = connection.execute(sqlalchemy.text(f"SELECT potion_capacity FROM global_inventory")).scalar()
         allowance = ml_capacity * 10000 - ml_current
-        
+        logger.info(f"allowance left: {allowance}")
+
         sql_to_execute = '''
                             SELECT ml_catalog.name, CAST(COALESCE(SUM(change), 0) AS INT) as ml FROM ml_catalog 
                             LEFT JOIN ml_ledger_entries 
@@ -134,6 +135,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                         if barrel.quantity != 0 and budget[color] >= barrel.price:
                             allowance -= barrel.ml_per_barrel
                             if allowance < 0:
+                                allowance += barrel.ml_per_barrel
                                 break
                             if barrel.sku not in toBuy:
                                 toBuy[barrel.sku] = {"sku" : barrel.sku, "quantity": 0}
@@ -149,16 +151,18 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         for color in colors:
             left_over_coins += budget[color]
         # This is just bootstrap code, so ill buy certain ml if I don't have any, to just make custom potions
-        if num_of_ml[1] < 100 and len(barrel_colors["green"]) and barrel_colors["green"][0].quantity != 0 and  barrel_colors["green"][0].price <= left_over_coins: # dark
+        if num_of_ml[1] < 100 and len(barrel_colors["green"]) and barrel_colors["green"][0].quantity != 0 and  barrel_colors["green"][0].price <= left_over_coins and allowance - barrel_colors["green"][0].ml_per_barrel >= 0 : # dark
             sku = barrel_colors["green"][0].sku
             toBuy[sku] = {"sku" : sku, "quantity": 1}
             barrel_colors["green"][0].quantity -= 1
             left_over_coins -= barrel_colors["green"][0].price
-        if num_of_ml[3] < 100 and len(barrel_colors["dark"]) and barrel_colors["dark"][0].quantity != 0 and barrel_colors["dark"][0].price <= left_over_coins: # dark
+            allowance -= barrel_colors["green"][0].ml_per_barrel 
+        if num_of_ml[3] < 100 and len(barrel_colors["dark"]) and barrel_colors["dark"][0].quantity != 0 and barrel_colors["dark"][0].price <= left_over_coins and allowance - barrel_colors["dark"][0].ml_per_barrel >= 0 : # dark
             sku = barrel_colors["dark"][0].sku
             toBuy[sku] = {"sku" : sku, "quantity": 1}
             barrel_colors["dark"][0].quantity -= 1
             left_over_coins -= barrel_colors["dark"][0].price
+            allowance -= barrel_colors["dark"][0].ml_per_barrel
 
         logger.info(f"{left_over_coins}")
         logger.info(f"{barrel_colors}")
@@ -169,6 +173,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         #     if "price" in barrel:
         #         del barrel["price"]
 
+        logger.info(f"allowance left: {allowance}")
         return list(toBuy.values())
     
         # return [
