@@ -56,11 +56,11 @@ def search_orders(
     Your results must be paginated, the max results you can return at any
     time is 5 total line items.
     """
-    metadata_obj = sqlalchemy.MetaData()
-    customers = sqlalchemy.Table("customers", metadata_obj, autoload_with=db.engine)
-    potion_inventory = sqlalchemy.Table("potion_inventory", metadata_obj, autoload_with=db.engine)
-    cart_item = sqlalchemy.Table("cart_item", metadata_obj, autoload_with=db.engine)
-    cart = sqlalchemy.Table("cart", metadata_obj, autoload_with=db.engine)
+    metadata_obj = db.metadata_obj
+    customers = db.customers
+    potion_inventory = db.potion_inventory
+    cart_item = db.cart_item
+    cart = db.cart
 
     with db.engine.begin() as connection:
         limit = 5
