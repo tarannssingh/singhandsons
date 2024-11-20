@@ -71,7 +71,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         # num_of_ml = connection.execute(sqlalchemy.text("SELECT num_red_ml, num_green_ml, num_blue_ml, num_dark_ml FROM global_inventory")).first()
         # net_worth = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).scalar()
         ml_current = connection.execute(sqlalchemy.text(f"SELECT CAST(COALESCE(SUM(change), 0) AS INT) FROM ml_ledger_entries")).scalar()
-        ml_capacity = connection.execute(sqlalchemy.text(f"SELECT potion_capacity FROM global_inventory")).scalar()
+        ml_capacity = connection.execute(sqlalchemy.text(f"SELECT ml_capacity FROM global_inventory")).scalar()
         allowance = ml_capacity * 10000 - ml_current
         logger.info(f"allowance left: {allowance}")
 
